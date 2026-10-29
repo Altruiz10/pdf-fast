@@ -20,14 +20,12 @@ import {
   LayoutGrid,
   Maximize,
   Minimize2,
-  Minus,
   Moon,
   MousePointer2,
   MoveRight,
   PanelLeft,
   PenLine,
   PenTool,
-  Plus,
   Printer,
   Redo2,
   RotateCw,
@@ -52,7 +50,8 @@ import {
   History,
 } from 'lucide-react';
 import { useDoc } from './store';
-import { Viewer, clampZoom, type ZoomMode } from './components/Viewer';
+import { Viewer, clampZoom, type ZoomApi, type ZoomMode } from './components/Viewer';
+import { ZOOM_STEPS, ZoomControls } from './components/ZoomControls';
 import { Sidebar, type SideTab } from './components/Sidebar';
 import { Organizer } from './components/Organizer';
 import { BusyOverlay, Modal, Toasts } from './components/ui';
@@ -136,6 +135,13 @@ export default function App() {
   const searchInput = useRef<HTMLInputElement>(null);
 
   const setScale = useCallback((s: number) => setScaleState(clampZoom(s)), []);
+
+  const zoomApi = useRef<ZoomApi | null>(null);
+  /** Next size up/down from the list of steps, around the centre of the screen. */
+  const stepZoom = (dir: 1 | -1) => {
+    const next = dir > 0 ? ZOOM_STEPS.find((s) => s > scale * 1.02) : [...ZOOM_STEPS].reverse().find((s) => s < scale / 1.02);
+    if (next) zoomApi.current?.zoomTo(next);
+  };
 
   const isDark = theme === 'dark' || (theme === 'system' && systemDark);
   const toggleTheme = useCallback(() => setTheme(isDark ? 'light' : 'dark'), [isDark]);
@@ -368,12 +374,10 @@ export default function App() {
         else if (searchOpen) setSearchOpen(false);
       } else if (mod && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
-        setZoomMode('custom');
-        setScale(scale * 1.2);
+        stepZoom(1);
       } else if (mod && e.key === '-') {
         e.preventDefault();
-        setZoomMode('custom');
-        setScale(scale / 1.2);
+        stepZoom(-1);
       } else if (mod && e.key === '0') {
         e.preventDefault();
         setZoomMode('fit-width');
@@ -531,17 +535,6 @@ export default function App() {
             <span>{doc.name}</span>
             {dirty && <i className="dirty" title="Alterações não salvas" />}
           </div>
-          <div className="zoom hide-narrow">
-            <button className="icon-btn" onClick={() => (setZoomMode('custom'), setScale(scale / 1.2))} aria-label="Diminuir zoom">
-              <Minus size={18} />
-            </button>
-            <button className="zoom-val" onClick={() => setZoomMode(zoomMode === 'fit-width' ? 'fit-page' : 'fit-width')} title="Alternar ajuste">
-              {Math.round(scale * 100)}%
-            </button>
-            <button className="icon-btn" onClick={() => (setZoomMode('custom'), setScale(scale * 1.2))} aria-label="Aumentar zoom">
-              <Plus size={18} />
-            </button>
-          </div>
           <div className="spacer" />
           <button className="icon-btn" disabled={!d.canUndo} onClick={d.undo} title={d.undoLabel ? `Desfazer: ${d.undoLabel}` : 'Desfazer'} aria-label="Desfazer">
             <Undo2 size={20} />
@@ -676,6 +669,14 @@ export default function App() {
               layout={isNarrow() && layout === 'two-up' ? 'continuous' : layout}
               labels={labels}
               readMode={readMode}
+              api={zoomApi}
+            />
+            <ZoomControls
+              scale={scale}
+              mode={zoomMode}
+              onStep={stepZoom}
+              onPreset={(s) => zoomApi.current?.zoomTo(s)}
+              onFit={setZoomMode}
             />
             <div className="page-pill" aria-live="polite">
               {labels[d.currentPage] ?? d.currentPage + 1} / {pageCount}

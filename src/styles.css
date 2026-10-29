@@ -913,6 +913,13 @@ h3 {
   display: block;
 }
 
+/* sharp, high-resolution tile of the visible part of the page at deep zoom */
+.page-region {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
 .page .textLayer {
   z-index: 1;
 }
@@ -1091,6 +1098,92 @@ textarea.text-annot.editing {
 
 .single-nav button:disabled {
   opacity: 0.3;
+}
+
+.zoom-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 56px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.zc-btn,
+.zc-val {
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 44px;
+}
+
+.zc-btn:hover,
+.zc-val:hover {
+  background: var(--surface-2);
+}
+
+.zc-btn:first-of-type {
+  border-radius: 13px 13px 0 0;
+}
+
+.zc-btn:last-of-type {
+  border-radius: 0 0 13px 13px;
+}
+
+.zc-val {
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-block: 1px solid var(--border);
+}
+
+.zoom-menu {
+  position: absolute;
+  right: calc(100% + 8px);
+  bottom: 0;
+  min-width: 190px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.zoom-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+}
+
+.zoom-menu button:hover {
+  background: var(--surface-2);
+}
+
+.zoom-menu button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.zoom-menu hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
 }
 
 .page-pill {

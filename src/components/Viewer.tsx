@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { Highlighter } from 'lucide-react';
 import { useDoc } from '../store';
 import { PageView } from './PageView';
@@ -17,13 +17,19 @@ interface Props {
   layout: 'continuous' | 'single' | 'two-up';
   labels: string[];
   readMode: boolean;
+  api: MutableRefObject<ZoomApi | null>;
+}
+
+export interface ZoomApi {
+  /** Zooms to an absolute scale, keeping the centre of the view in place. */
+  zoomTo: (scale: number) => void;
 }
 
 export const MIN_ZOOM = 0.2;
 export const MAX_ZOOM = 8;
 export const clampZoom = (s: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, s));
 
-export function Viewer({ scale, setScale, zoomMode, setZoomMode, matches, current, layout, labels, readMode }: Props) {
+export function Viewer({ scale, setScale, zoomMode, setZoomMode, matches, current, layout, labels, readMode, api }: Props) {
   const { doc, jumpTo, setCurrentPage, currentPage, tool, setSelected, setAnnots, goToPage } = useDoc();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState<Set<number>>(new Set([0, 1, 2]));
@@ -133,6 +139,40 @@ export function Viewer({ scale, setScale, zoomMode, setZoomMode, matches, curren
     },
     [setScale, setZoomMode],
   );
+
+  // Lets the zoom buttons and shortcuts zoom around the centre of what is on screen.
+  useEffect(() => {
+    api.current = {
+      zoomTo: (s) => {
+        const r = scrollRef.current!.getBoundingClientRect();
+        zoomAt(s, r.left + r.width / 2, r.top + r.height / 2);
+      },
+    };
+    return () => {
+      api.current = null;
+    };
+  }, [api, zoomAt]);
+
+  // Double-tap: jump between "fit to width" and a comfortable reading size around the tapped spot.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || tool !== 'select') return;
+    let last = { t: 0, x: 0, y: 0 };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length || e.changedTouches.length !== 1) return;
+      const t = e.changedTouches[0];
+      if ((e.target as Element).closest('[data-annot], button, textarea, input')) return;
+      const now = Date.now();
+      if (now - last.t < 300 && Math.hypot(t.clientX - last.x, t.clientY - last.y) < 24) {
+        getSelection()?.removeAllRanges();
+        if (zoomMode === 'fit-width' && scale < 2) zoomAt(Math.max(scale * 2.2, 1.6), t.clientX, t.clientY);
+        else setZoomMode('fit-width');
+        last = { t: 0, x: 0, y: 0 };
+      } else last = { t: now, x: t.clientX, y: t.clientY };
+    };
+    el.addEventListener('touchend', onEnd, { passive: true });
+    return () => el.removeEventListener('touchend', onEnd);
+  }, [tool, zoomMode, scale, zoomAt, setZoomMode]);
 
   // Ctrl/⌘ + wheel and trackpad pinch on desktop.
   useEffect(() => {
