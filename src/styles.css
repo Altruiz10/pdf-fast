@@ -260,6 +260,65 @@ h3 {
   color: var(--muted);
 }
 
+.brand .theme-btn {
+  margin-left: auto;
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.install-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 40;
+  width: min(560px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.22);
+  animation: rise 0.25s ease-out;
+}
+
+.install-banner img {
+  border-radius: 10px;
+  flex: none;
+}
+
+.install-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.install-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.install-text strong {
+  font-size: 14.5px;
+}
+
+.install-text span {
+  color: var(--muted);
+}
+
+.install-text svg {
+  vertical-align: -2px;
+}
+
 .drop {
   display: flex;
   flex-direction: column;
@@ -1739,6 +1798,19 @@ textarea.text-annot.editing {
 
   .toasts {
     bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+
+  /* sits above the bottom navigation bar when a document is open */
+  .install-banner {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+
+  .home .install-banner {
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .install-banner .btn {
+    padding: 0 10px;
   }
 }
 

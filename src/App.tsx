@@ -69,6 +69,9 @@ import {
   SignatureDialog,
   SplitDialog,
 } from './components/Dialogs';
+import { InstallBanner } from './components/InstallBanner';
+import { ThemeButton } from './components/ThemeButton';
+import { useInstall } from './lib/install';
 import { findAll, type Match } from './lib/search';
 import { canShareFiles, clearRecovery, pickFiles, printPdf, readRecovery, sharePdf, type Recovery } from './lib/files';
 import { imagesToPdf, rotatePages } from './lib/pdfops';
@@ -127,33 +130,39 @@ export default function App() {
   const [matchIdx, setMatchIdx] = useState(0);
   const [labels, setLabels] = useState<string[]>([]);
   const [recovery, setRecovery] = useState<Recovery | undefined>();
-  const [installEvt, setInstallEvt] = useState<(Event & { prompt: () => void }) | null>(null);
+  const install = useInstall();
+  const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const [dragOver, setDragOver] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
 
   const setScale = useCallback((s: number) => setScaleState(clampZoom(s)), []);
 
+  const isDark = theme === 'dark' || (theme === 'system' && systemDark);
+  const toggleTheme = useCallback(() => setTheme(isDark ? 'light' : 'dark'), [isDark]);
+
   useEffect(() => {
-    document.documentElement.dataset.theme = theme === 'system' ? '' : theme;
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    const h = () => setSystemDark(mq.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, []);
+
+  useEffect(() => {
     if (theme === 'system') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
     store.set('pdffast:theme', theme);
-  }, [theme]);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#1f1c1a' : '#c2410c');
+  }, [theme, isDark]);
   useEffect(() => store.set('pdffast:layout', layout), [layout]);
 
   useEffect(() => {
     readRecovery().then(setRecovery);
-    const h = (e: Event) => {
-      e.preventDefault();
-      setInstallEvt(e as Event & { prompt: () => void });
-    };
-    addEventListener('beforeinstallprompt', h);
     // Files opened through the installed app ("Open with PDF FAST").
     const lq = (window as unknown as { launchQueue?: { setConsumer: (f: (p: { files: { getFile: () => Promise<File> }[] }) => void) => void } }).launchQueue;
     lq?.setConsumer(async (p) => {
       const f = p.files[0];
       if (f) open(await f.getFile());
     });
-    return () => removeEventListener('beforeinstallprompt', h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -296,14 +305,14 @@ export default function App() {
       },
       {
         id: 'theme',
-        label: theme === 'dark' ? 'Tema claro' : 'Tema escuro',
+        label: isDark ? 'Tema claro' : 'Tema escuro',
         group: 'Exibir',
-        icon: theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />,
-        run: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+        icon: isDark ? <Sun size={18} /> : <Moon size={18} />,
+        run: toggleTheme,
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [d.save, d.finalBytes, d.bakedBytes, d.currentPage, theme, doc],
+    [d.save, d.finalBytes, d.bakedBytes, d.currentPage, isDark, doc],
   );
 
   const startCombine = (initial?: { name: string; bytes: Uint8Array }[]) => {
@@ -411,6 +420,7 @@ export default function App() {
       {dialog === 'compress' && <CompressDialog onClose={() => setDialog(null)} />}
       {dialog === 'redact' && <RedactDialog onClose={() => setDialog(null)} />}
       {dialog === 'palette' && <Palette commands={commands} hasDoc={!!doc} onClose={() => setDialog(null)} />}
+      <InstallBanner />
       <BusyOverlay />
       <Toasts />
     </>
@@ -435,6 +445,7 @@ export default function App() {
               <h1>PDF FAST</h1>
               <p>Leia, comente, assine e organize PDFs. Tudo no seu aparelho — nenhum arquivo sai dele.</p>
             </div>
+            <ThemeButton dark={isDark} toggle={toggleTheme} />
           </div>
           <button className="drop" onClick={openPicker}>
             <FolderOpen size={36} />
@@ -474,8 +485,8 @@ export default function App() {
             <ToolCard icon={<ScanText />} title="OCR" text="Torne digitalizações pesquisáveis" onClick={openPicker} />
             <ToolCard icon={<FileLock2 />} title="Senha e tarjas" text="Proteja e remova informações" onClick={openPicker} />
           </div>
-          {installEvt && (
-            <button className="btn install" onClick={() => installEvt.prompt()}>
+          {install.kind === 'prompt' && (
+            <button className="btn install" onClick={() => install.install()}>
               <Smartphone size={18} /> Instalar o app neste aparelho
             </button>
           )}
@@ -550,6 +561,7 @@ export default function App() {
           <button className="icon-btn hide-narrow" onClick={() => setDialog('palette')} title="Todas as ferramentas (Ctrl+K)" aria-label="Ferramentas">
             <Command size={20} />
           </button>
+          <ThemeButton dark={isDark} toggle={toggleTheme} />
           <button className="btn primary save-btn" onClick={d.save} title="Salvar (Ctrl+S)">
             <Download size={18} />
             <span className="hide-narrow">Salvar</span>
